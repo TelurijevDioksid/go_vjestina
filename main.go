@@ -1,9 +1,7 @@
 package main
 
-import (
-	"fmt"
-)
-
 func main() {
-    fmt.Println("Hello, World!")
+    ramstore := NewRAMStorage()
+    server := NewAPIServer(":8080", ramstore)
+    server.Start()
 }
