@@ -2,11 +2,13 @@ package main
 
 import (
 	"time"
+    "math"
 )
 
 type GasType string
 
 const (
+    EarthRadius = 6371
 	Diesel   = "diesel"
 	Gasoline = "gasoline"
 	Gas      = "gas"
@@ -14,6 +16,10 @@ const (
 
 func ValidGasType(g string) bool {
 	return g == Diesel || g == Gasoline || g == Gas
+}
+
+type HistPriceGasTypeDto struct {
+    HistoryPrices map[time.Time]float64 `json:"history_prices"`
 }
 
 type User struct {
@@ -123,4 +129,22 @@ func NewStationDto(
 		SupportedFuel: suppFuel,
 		Location:      location,
 	}
+}
+
+func DistanceKm(aLoc, bLoc *Location) float64 {
+    lonA := aLoc.Longitude * math.Pi / 180
+    lonB := bLoc.Longitude * math.Pi / 180
+    latA := aLoc.Latitude * math.Pi / 180
+    latB := bLoc.Latitude * math.Pi / 180
+   
+    // Haversine formula 
+    dlon := lonB - lonA 
+    dlat := latB - latA
+    a := math.Pow(math.Sin(dlat / 2), 2) +
+        math.Cos(latA) * math.Cos(latB) *
+        math.Pow(math.Sin(dlon / 2), 2)
+           
+    c := 2 * math.Asin(math.Sqrt(a));
+
+    return c * EarthRadius;
 }

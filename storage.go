@@ -13,7 +13,7 @@ type Storage interface {
 	UpdateUser(int64, *UserDto) (*User, error)
 	GetUsers() ([]*User, error)
 	GetUserByID(int64) (*User, error)
-    GetUserByEmail(string) (*User, error)
+	GetUserByEmail(string) (*User, error)
 
 	CreateStation(*StationDto) error
 	DeleteStation(int64) error
@@ -21,8 +21,8 @@ type Storage interface {
 	GetStations() ([]*Station, error)
 	GetStationByID(int64) (*Station, error)
 
-    GetHistoryPrices(int64, string) (map[time.Time]float64, error)
-    GetPricesByLocation(Location) ([]*Station, error)
+	GetHistoryPrices(int64, string) (*HistPriceGasTypeDto, error)
+	GetPricesByLocation(*Location) ([3]*Station, error)
 }
 
 type RAMStorage struct {
@@ -44,51 +44,64 @@ func generateId() int64 {
 	return int64(r.Uint64())
 }
 
-func (s *RAMStorage) GetPricesByLocation(loc Location) ([]*Station, error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    
-    stations := make([]*Station, 0)
-    for _, st := range s.stations {
-        if st.Location == loc {
-            stations = append(stations, st)
-        }
-    }
-    
-    return stations, nil
+func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*Station, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	stations := [3]*Station{}
+
+	for i, st := range s.stations {
+		if len(stations) < 3 {
+			stations[i] = st
+			continue
+		}
+
+		d := DistanceKm(&st.Location, loc)
+		for j, ss := range stations {
+			if d < DistanceKm(&ss.Location, loc) {
+				stations[j] = st
+				break
+			}
+		}
+	}
+
+	return stations, nil
 }
 
-func (s *RAMStorage) GetHistoryPrices(id int64, gasType string) (map[time.Time]float64, error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    
-    station, err := s.GetStationByID(id)
-    if err != nil {
-        return nil, err
-    }
-    
-    if !ValidGasType(gasType) {
-        return nil, fmt.Errorf("Invalid gas type")
-    }
-    
-    gt := GasType(gasType)
-    supported := false
-    for _, sf := range station.SupportedFuel {
-        if sf == gt {
-            supported = true
-            break
-        }
-    }
-    if !supported {
-        return nil, fmt.Errorf("Gas type not supported")
-    }
+func (s *RAMStorage) GetHistoryPrices(id int64, gasType string) (*HistPriceGasTypeDto, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-    histPrices := make(map[time.Time]float64, 0)
-    for _, gp := range station.PricesHistory {
-        histPrices[gp.Time] = gp.Prices[gt]
-    }
-    
-    return histPrices, nil
+	histPrices := &HistPriceGasTypeDto{
+		HistoryPrices: make(map[time.Time]float64, 0),
+	}
+
+	station, err := s.GetStationByID(id)
+	if err != nil {
+		return histPrices, err
+	}
+
+	if !ValidGasType(gasType) {
+		return histPrices, fmt.Errorf("Invalid gas type")
+	}
+
+	gt := GasType(gasType)
+	supported := false
+	for _, sf := range station.SupportedFuel {
+		if sf == gt {
+			supported = true
+			break
+		}
+	}
+	if !supported {
+		return histPrices, fmt.Errorf("Gas type not supported")
+	}
+
+	for _, gp := range station.PricesHistory {
+		histPrices.HistoryPrices[gp.Time] = gp.Prices[gt]
+	}
+
+	return histPrices, nil
 }
 
 func (s *RAMStorage) CreateStation(cst *StationDto) error {
@@ -99,23 +112,23 @@ func (s *RAMStorage) CreateStation(cst *StationDto) error {
 	histP := make([]GasPrices, 0)
 
 	station := NewStation(
-        id,
-        cst.Name,
-        cst.Address,
-        cst.SupportedFuel,
-        cst.Location,
-        cst.CurrentPrice,
-        histP,
-    )
+		id,
+		cst.Name,
+		cst.Address,
+		cst.SupportedFuel,
+		cst.Location,
+		cst.CurrentPrice,
+		histP,
+	)
 
-    priceSource := NewStationPriceSource(station)
-    priceModifier := NewMCPriceGen(5*time.Second, priceSource)
-    priceReceiver := NewStationPriceReceiver(station)
+	priceSource := NewStationPriceSource(station)
+	priceModifier := NewMCPriceGen(10*time.Second, priceSource)
+	priceReceiver := NewStationPriceReceiver(station)
 
-    priceChan := make(chan GasPrices)
-    go priceModifier.SendPrice(priceChan)
-    go priceReceiver.ReceivePrice(priceChan)
-    
+	priceChan := make(chan GasPrices)
+	go priceModifier.SendPrice(priceChan)
+	go priceReceiver.ReceivePrice(priceChan)
+
 	s.stations = append(s.stations, station)
 	return nil
 }
@@ -177,9 +190,9 @@ func (s *RAMStorage) CreateUser(u *UserDto) error {
 
 	id := generateId()
 	user, err := NewUser(id, u.Username, u.Password, u.Email)
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 	s.users = append(s.users, user)
 	return nil
 }
@@ -234,15 +247,15 @@ func (s *RAMStorage) GetUserByID(id int64) (*User, error) {
 	return nil, fmt.Errorf("User with id %d not found", id)
 }
 
-func (s * RAMStorage) GetUserByEmail(email string) (*User, error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+func (s *RAMStorage) GetUserByEmail(email string) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-    for _, u := range s.users {
-        if u.Email == email {
-            return u, nil
-        }
-    }
+	for _, u := range s.users {
+		if u.Email == email {
+			return u, nil
+		}
+	}
 
-    return nil, fmt.Errorf("User with email %s not found", email)
+	return nil, fmt.Errorf("User with email %s not found", email)
 }

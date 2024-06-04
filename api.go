@@ -112,12 +112,12 @@ func (s *APIServer) Start() {
 }
 
 func (s *APIServer) handleGetPricesByLocation(w http.ResponseWriter, r *http.Request) error {
-    location := new(Location)
-    if err := json.NewDecoder(r.Body).Decode(location); err != nil {
+    loc := new(Location)
+    if err := json.NewDecoder(r.Body).Decode(loc); err != nil {
         return err
     }
     
-    prices, err := s.storage.GetPricesByLocation(location)
+    prices, err := s.storage.GetPricesByLocation(loc)
     if err != nil {
         return nil
     }
