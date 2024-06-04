@@ -1,14 +1,16 @@
 package main
 
 import (
-    "golang.org/x/crypto/bcrypt"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
-    "encoding/base64"
-    "strconv"
-    "crypto/hmac"
-    "crypto/sha256"
-    "time"
-    "strings"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func BcryptPassword(pwd string) (string, error) {
@@ -49,7 +51,7 @@ func GenerateJwtPayload(email string) string {
 }
 
 func GenerateJwtSignature(header, payload string) string {
-    secret := "GOGOGOGO"
+    secret := os.Getenv("JWT_SECRET")
     message := header + "." + payload
     mac := hmac.New(sha256.New, []byte(secret))
     mac.Write([]byte(message))

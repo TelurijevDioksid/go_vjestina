@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"sync"
 	"time"
+    "os"
 )
 
 type Storage interface {
@@ -32,8 +34,18 @@ type RAMStorage struct {
 }
 
 func NewRAMStorage() *RAMStorage {
+    id := generateId()
+    uname := os.Getenv("ADMIN_UNAME")
+    pass := os.Getenv("ADMIN_PASS")
+    email := os.Getenv("ADMIN_EMAIL")
+    admin, err := NewUser(id, uname, pass, email)
+    if err != nil {
+        log.Fatalf("Failed to create admin user: %v", err)
+    }
+
+    users := []*User{admin}
 	return &RAMStorage{
-		users:    make([]*User, 0),
+		users:    users,
 		stations: make([]*Station, 0),
 	}
 }
