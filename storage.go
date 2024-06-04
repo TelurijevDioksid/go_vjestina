@@ -22,7 +22,7 @@ type Storage interface {
 	GetStationByID(int64) (*Station, error)
 
 	GetHistoryPrices(int64, string) (*HistPriceGasTypeDto, error)
-	GetPricesByLocation(*Location) ([3]*Station, error)
+	GetPricesByLocation(*Location) ([3]*StationPriceLocDto, error)
 }
 
 type RAMStorage struct {
@@ -44,28 +44,28 @@ func generateId() int64 {
 	return int64(r.Uint64())
 }
 
-func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*Station, error) {
+func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*StationPriceLocDto, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	stations := [3]*Station{}
+	dtoArr := [3]*StationPriceLocDto{}
 
 	for i, st := range s.stations {
-		if len(stations) < 3 {
-			stations[i] = st
+		if len(dtoArr) < 3 {
+			dtoArr[i] = NewStationPriceLocDto(st.Name, st.Address, st.Location, st.CurrentPrice)
 			continue
 		}
 
 		d := DistanceKm(&st.Location, loc)
-		for j, ss := range stations {
+		for j, ss := range dtoArr {
 			if d < DistanceKm(&ss.Location, loc) {
-				stations[j] = st
+				dtoArr[j] = NewStationPriceLocDto(st.Name, st.Address, st.Location, st.CurrentPrice)
 				break
 			}
 		}
 	}
 
-	return stations, nil
+	return dtoArr, nil
 }
 
 func (s *RAMStorage) GetHistoryPrices(id int64, gasType string) (*HistPriceGasTypeDto, error) {

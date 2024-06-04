@@ -1,9 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"math"
+	"math/rand"
 	"time"
-    "math"
-    "math/rand"
 )
 
 type PriceSource interface {
@@ -56,12 +57,14 @@ func (mc *MCPriceGen) ModifyPrice(num float64) float64 {
 		dW := math.Sqrt(dt) * rnd.NormFloat64()
 		price *= math.Exp((mu - 0.5 * sigma * sigma) * dt + sigma * dW)
 	}
-
+    
+    fmt.Println("Modify price: (", price, " old price ", num, ")")
     return price
 }
 
 func (mc *MCPriceGen) SendPrice(ch chan GasPrices) {
 	for {
+        fmt.Println("GO Generating new price")
 		prevPrice := mc.initalPriceSource.GetPrice()
         newPrice := GasPrices{
             Prices: make(map[GasType]float64),
@@ -91,6 +94,7 @@ func NewStationPriceReceiver(s *Station) *StationPriceReceiver {
 
 func (s *StationPriceReceiver) ReceivePrice(ch chan GasPrices) {
     for {
+        fmt.Println("GO Receiving new price")
         newPrice := <-ch
         s.Station.PricesHistory = append(s.Station.PricesHistory, s.Station.CurrentPrice)
         s.Station.CurrentPrice = newPrice

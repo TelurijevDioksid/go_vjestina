@@ -1,17 +1,17 @@
 package main
 
 import (
+	"math"
 	"time"
-    "math"
 )
 
 type GasType string
 
 const (
-    EarthRadius = 6371
-	Diesel   = "diesel"
-	Gasoline = "gasoline"
-	Gas      = "gas"
+	EarthRadius = 6371
+	Diesel      = "diesel"
+	Gasoline    = "gasoline"
+	Gas         = "gas"
 )
 
 func ValidGasType(g string) bool {
@@ -19,7 +19,7 @@ func ValidGasType(g string) bool {
 }
 
 type HistPriceGasTypeDto struct {
-    HistoryPrices map[time.Time]float64 `json:"history_prices"`
+	HistoryPrices map[time.Time]float64 `json:"history_prices"`
 }
 
 type User struct {
@@ -99,6 +99,22 @@ type Location struct {
 	Longitude float64 `json:"longitude"`
 }
 
+type StationPriceLocDto struct {
+	Name         string    `json:"name"`
+	Address      string    `json:"address"`
+	Location     Location  `json:"location"`
+	CurrentPrice GasPrices `json:"current_price"`
+}
+
+func NewStationPriceLocDto(name string, addr string, loc Location, currP GasPrices) *StationPriceLocDto {
+    return &StationPriceLocDto{
+        Name:         name,
+        Address:      addr,
+        Location:     loc,
+        CurrentPrice: currP,
+    }
+}
+
 func NewStation(
 	id int64,
 	name string,
@@ -132,19 +148,19 @@ func NewStationDto(
 }
 
 func DistanceKm(aLoc, bLoc *Location) float64 {
-    lonA := aLoc.Longitude * math.Pi / 180
-    lonB := bLoc.Longitude * math.Pi / 180
-    latA := aLoc.Latitude * math.Pi / 180
-    latB := bLoc.Latitude * math.Pi / 180
-   
-    // Haversine formula 
-    dlon := lonB - lonA 
-    dlat := latB - latA
-    a := math.Pow(math.Sin(dlat / 2), 2) +
-        math.Cos(latA) * math.Cos(latB) *
-        math.Pow(math.Sin(dlon / 2), 2)
-           
-    c := 2 * math.Asin(math.Sqrt(a));
+	lonA := aLoc.Longitude * math.Pi / 180
+	lonB := bLoc.Longitude * math.Pi / 180
+	latA := aLoc.Latitude * math.Pi / 180
+	latB := bLoc.Latitude * math.Pi / 180
 
-    return c * EarthRadius;
+	// Haversine formula
+	dlon := lonB - lonA
+	dlat := latB - latA
+	a := math.Pow(math.Sin(dlat/2), 2) +
+		math.Cos(latA)*math.Cos(latB)*
+			math.Pow(math.Sin(dlon/2), 2)
+
+	c := 2 * math.Asin(math.Sqrt(a))
+
+	return c * EarthRadius
 }
