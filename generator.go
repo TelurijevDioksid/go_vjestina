@@ -71,6 +71,7 @@ func (mc *MCPriceGen) SendPrice(ch chan GasPrices) {
             Time: time.Now(),
         }
         for k, v := range prevPrice.Prices {
+            fmt.Println("k: ", k, " v: ", v)
             newPrice.Prices[k] = mc.ModifyPrice(v)
         }
         ch <- newPrice

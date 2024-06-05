@@ -72,7 +72,7 @@ func NewUserDto(uname string, pass string, email string) *UserDto {
 }
 
 type Station struct {
-	ID            uint64       `json:"id"`
+	ID            uint64      `json:"id"`
 	Name          string      `json:"name"`
 	Address       string      `json:"address"`
 	SupportedFuel []GasType   `json:"supported_fuel"`
