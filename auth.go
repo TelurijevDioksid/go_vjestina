@@ -79,3 +79,4 @@ func ValidateJwt(token string) bool {
     signature := parts[2]
     return signature == GenerateJwtSignature(parts[0], parts[1])
 }
+

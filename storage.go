@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
     "os"
+    "sort"
 )
 
 type Storage interface {
@@ -24,7 +25,7 @@ type Storage interface {
 	GetStationByID(uint64) (*Station, error)
 
 	GetHistoryPrices(uint64, string) (*HistPriceGasTypeDto, error)
-	GetPricesByLocation(*Location) ([3]*StationPriceLocDto, error)
+	GetPricesByLocation(*Location) ([]*StationPriceLocDto, error)
 }
 
 type RAMStorage struct {
@@ -56,61 +57,79 @@ func generateId() uint64 {
 	return r.Uint64()
 }
 
-func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*StationPriceLocDto, error) {
+func (s *RAMStorage) CreateUser(u *UserDto) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dtoArr := [3]*StationPriceLocDto{}
-
-	for i, st := range s.stations {
-		if len(dtoArr) < 3 {
-			dtoArr[i] = NewStationPriceLocDto(st.Name, st.Address, st.Location, st.CurrentPrice)
-			continue
-		}
-
-		d := DistanceKm(&st.Location, loc)
-		for j, ss := range dtoArr {
-			if d < DistanceKm(&ss.Location, loc) {
-				dtoArr[j] = NewStationPriceLocDto(st.Name, st.Address, st.Location, st.CurrentPrice)
-				break
-			}
-		}
+	id := generateId()
+	user, err := NewUser(id, u.Username, u.Password, u.Email)
+	if err != nil {
+		return err
 	}
-
-	return dtoArr, nil
+	s.users = append(s.users, user)
+	return nil
 }
 
-func (s *RAMStorage) GetHistoryPrices(id uint64, gasType string) (*HistPriceGasTypeDto, error) {
-	histPrices := &HistPriceGasTypeDto{
-		HistoryPrices: make(map[time.Time]float64, 0),
-	}
-    
-	station, err := s.GetStationByID(id)
-	if err != nil {
-		return histPrices, err
-	}
+func (s *RAMStorage) DeleteUser(id uint64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if !ValidGasType(gasType) {
-		return histPrices, fmt.Errorf("Invalid gas type")
-	}
-
-	gt := GasType(gasType)
-	supported := false
-	for _, sf := range station.SupportedFuel {
-		if sf == gt {
-			supported = true
-			break
+	for i, u := range s.users {
+		if u.ID == id {
+			s.users = append(s.users[:i], s.users[i+1:]...)
+			return nil
 		}
 	}
-	if !supported {
-		return histPrices, fmt.Errorf("Gas type not supported")
+
+	return fmt.Errorf("User with id %d not found", id)
+}
+func (s *RAMStorage) UpdateUser(id uint64, user *UserDto) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, u := range s.users {
+		if u.ID == id {
+			u.Username = user.Username
+			u.CryptPassword = user.Password
+			u.Email = user.Email
+			return u, nil
+		}
 	}
 
-	for _, gp := range station.PricesHistory {
-		histPrices.HistoryPrices[gp.Time] = gp.Prices[gt]
+	return nil, fmt.Errorf("User with id %d not found", id)
+}
+
+func (s *RAMStorage) GetUsers() ([]*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.users, nil
+}
+
+func (s *RAMStorage) GetUserByID(id uint64) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, u := range s.users {
+		if u.ID == id {
+			return u, nil
+		}
 	}
 
-	return histPrices, nil
+	return nil, fmt.Errorf("User with id %d not found", id)
+}
+
+func (s *RAMStorage) GetUserByEmail(email string) (*User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, u := range s.users {
+		if u.Email == email {
+			return u, nil
+		}
+	}
+
+	return nil, fmt.Errorf("User with email %s not found", email)
 }
 
 func (s *RAMStorage) CreateStation(cst *StationDto) error {
@@ -133,11 +152,6 @@ func (s *RAMStorage) CreateStation(cst *StationDto) error {
 		*sCurrPrice,
 		histP,
 	)
-
-    fmt.Println("Creating station currprice: ")
-    for k, v := range station.CurrentPrice.Prices {
-        fmt.Println("k: ", k, " v: ", v)
-    }
 
 	priceSource := NewStationPriceSource(station)
 	priceModifier := NewMCPriceGen(20 * time.Second, priceSource)
@@ -202,78 +216,82 @@ func (s *RAMStorage) GetStationByID(id uint64) (*Station, error) {
 	return nil, fmt.Errorf("Station with id %d not found", id)
 }
 
-func (s *RAMStorage) CreateUser(u *UserDto) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	id := generateId()
-	user, err := NewUser(id, u.Username, u.Password, u.Email)
+func (s *RAMStorage) GetHistoryPrices(id uint64, gasType string) (*HistPriceGasTypeDto, error) {
+	histPrices := &HistPriceGasTypeDto{
+		HistoryPrices: make(map[time.Time]float64, 0),
+	}
+    
+	station, err := s.GetStationByID(id)
 	if err != nil {
-		return err
+		return histPrices, err
 	}
-	s.users = append(s.users, user)
-	return nil
-}
 
-func (s *RAMStorage) DeleteUser(id uint64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if !ValidGasType(gasType) {
+		return histPrices, fmt.Errorf("Invalid gas type")
+	}
 
-	for i, u := range s.users {
-		if u.ID == id {
-			s.users = append(s.users[:i], s.users[i+1:]...)
-			return nil
+	gt := GasType(gasType)
+	supported := false
+	for _, sf := range station.SupportedFuel {
+		if sf == gt {
+			supported = true
+			break
 		}
 	}
-
-	return fmt.Errorf("User with id %d not found", id)
-}
-
-func (s *RAMStorage) UpdateUser(id uint64, user *UserDto) (*User, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for _, u := range s.users {
-		if u.ID == id {
-			u.Username = user.Username
-			u.CryptPassword = user.Password
-			u.Email = user.Email
-			return u, nil
-		}
+	if !supported {
+		return histPrices, fmt.Errorf("Gas type not supported")
 	}
 
-	return nil, fmt.Errorf("User with id %d not found", id)
-}
-
-func (s *RAMStorage) GetUsers() ([]*User, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.users, nil
-}
-
-func (s *RAMStorage) GetUserByID(id uint64) (*User, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for _, u := range s.users {
-		if u.ID == id {
-			return u, nil
-		}
+	for _, gp := range station.PricesHistory {
+		histPrices.HistoryPrices[gp.Time] = gp.Prices[gt]
 	}
 
-	return nil, fmt.Errorf("User with id %d not found", id)
+	return histPrices, nil
 }
 
-func (s *RAMStorage) GetUserByEmail(email string) (*User, error) {
+func (s *RAMStorage) GetPricesByLocation(loc *Location) ([]*StationPriceLocDto, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, u := range s.users {
-		if u.Email == email {
-			return u, nil
+	slice := make([]*StationPriceLocDto, 0)
+
+	for _, st := range s.stations {
+		if len(slice) < 3 {
+            newSt := NewStationPriceLocDto(
+                st.Name,
+                st.Address,
+                st.Location,
+                st.CurrentPrice.Prices,
+                DistanceKm(&st.Location, loc),
+            )
+            slice = append(slice, newSt)
+			continue
 		}
+
+		d := DistanceKm(&st.Location, loc)
+		for _, ss := range slice {
+			if d < ss.Distance {
+                ss.Name = st.Name
+                ss.Address = st.Address
+                ss.Location = st.Location
+                ss.CurrentPrice = st.CurrentPrice.Prices
+                ss.Distance = d
+				break
+			}
+		}
+
+        sort.Slice(slice, func(i, j int) bool {
+            return slice[i].Distance > slice[j].Distance
+        })
 	}
 
-	return nil, fmt.Errorf("User with email %s not found", email)
+    for _, ss := range slice {
+        fmt.Println("final slice: ", ss.Address)
+    }
+    
+    sort.Slice(slice, func(i, j int) bool {
+        return slice[i].Distance < slice[j].Distance
+    })
+	return slice, nil
 }
+

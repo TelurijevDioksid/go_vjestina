@@ -11,8 +11,8 @@ const EarthRadius = 6371
 
 func ValidGasType(g string) bool {
 	return g == "diesel" ||
-        g == "gasoline" ||
-        g == "gas"
+		g == "gasoline" ||
+		g == "gas"
 }
 
 type HistPriceGasTypeDto struct {
@@ -41,6 +41,42 @@ type TokenDto struct {
 	Token string `json:"token"`
 }
 
+type Station struct {
+	ID            uint64      `json:"id"`
+	Name          string      `json:"name"`
+	Address       string      `json:"address"`
+	SupportedFuel []GasType   `json:"supported_fuel"`
+	Location      Location    `json:"location"`
+	CurrentPrice  GasPrices   `json:"current_price"`
+	PricesHistory []GasPrices `json:"price_history"`
+}
+
+type GasPrices struct {
+	Prices map[GasType]float64 `json:"prices"`
+	Time   time.Time           `json:"time"`
+}
+
+type StationDto struct {
+	Name          string              `json:"name"`
+	Address       string              `json:"address"`
+	SupportedFuel []GasType           `json:"supported_fuel"`
+	Location      Location            `json:"location"`
+	CurrentPrice  map[GasType]float64 `json:"prices"`
+}
+
+type Location struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+type StationPriceLocDto struct {
+	Name         string              `json:"name"`
+	Address      string              `json:"address"`
+	Location     Location            `json:"location"`
+	CurrentPrice map[GasType]float64 `json:"current_price"`
+	Distance     float64             `json:"distance_km"`
+}
+
 func NewTokenDto(token string) *TokenDto {
 	return &TokenDto{
 		Token: token,
@@ -60,48 +96,14 @@ func NewUser(id uint64, uname string, pass string, email string) (*User, error) 
 	}, nil
 }
 
-type Station struct {
-	ID            uint64      `json:"id"`
-	Name          string      `json:"name"`
-	Address       string      `json:"address"`
-	SupportedFuel []GasType   `json:"supported_fuel"`
-	Location      Location    `json:"location"`
-	CurrentPrice  GasPrices   `json:"current_price"`
-	PricesHistory []GasPrices `json:"price_history"`
-}
-
-type GasPrices struct {
-	Prices map[GasType]float64 `json:"prices"`
-	Time   time.Time           `json:"time"`
-}
-
-type StationDto struct {
-	Name          string       `json:"name"`
-	Address       string       `json:"address"`
-	SupportedFuel []GasType    `json:"supported_fuel"`
-	Location      Location     `json:"location"`
-	CurrentPrice  map[GasType]float64 `json:"prices"`
-}
-
-type Location struct {
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-}
-
-type StationPriceLocDto struct {
-	Name         string    `json:"name"`
-	Address      string    `json:"address"`
-	Location     Location  `json:"location"`
-	CurrentPrice GasPrices `json:"current_price"`
-}
-
-func NewStationPriceLocDto(name string, addr string, loc Location, currP GasPrices) *StationPriceLocDto {
-    return &StationPriceLocDto{
-        Name:         name,
-        Address:      addr,
-        Location:     loc,
-        CurrentPrice: currP,
-    }
+func NewStationPriceLocDto(name string, addr string, loc Location, currP map[GasType]float64, d float64) *StationPriceLocDto {
+	return &StationPriceLocDto{
+		Name:         name,
+		Address:      addr,
+		Location:     loc,
+		CurrentPrice: currP,
+		Distance:     d,
+	}
 }
 
 func NewStation(
@@ -129,7 +131,6 @@ func DistanceKm(aLoc, bLoc *Location) float64 {
 	latA := aLoc.Latitude * math.Pi / 180
 	latB := bLoc.Latitude * math.Pi / 180
 
-	// Haversine formula
 	dlon := lonB - lonA
 	dlat := latB - latA
 	a := math.Pow(math.Sin(dlat/2), 2) +

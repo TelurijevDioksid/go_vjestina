@@ -36,6 +36,15 @@ func wrapApiHandleFunc(f apiFuncDef) http.HandlerFunc {
 	}
 }
 
+func getIdFromPath(r *http.Request) (uint64, error) {
+    id_param := r.PathValue("id")
+    id, err := strconv.ParseUint(id_param, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("Failed to parse id")
+    }
+    return id, nil
+}
+
 func wrapAuth(hFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
         auth := r.Header.Get("Authorization")
@@ -111,39 +120,6 @@ func (s *APIServer) Start() {
 	}
 }
 
-func (s *APIServer) handleGetPricesByLocation(w http.ResponseWriter, r *http.Request) error {
-    loc := new(Location)
-    if err := json.NewDecoder(r.Body).Decode(loc); err != nil {
-        return err
-    }
-    
-    prices, err := s.storage.GetPricesByLocation(loc)
-    if err != nil {
-        return nil
-    }
-
-    return jsonWriter(w, http.StatusOK, prices)
-}
-
-func (s *APIServer) handleGetHistoryPrices(w http.ResponseWriter, r *http.Request) error {
-    id, err := getIdFromPath(r)
-    if err != nil {
-        return err
-    }
-
-    gasType := r.PathValue("gasType")
-    if gasType == "" {
-        return fmt.Errorf("Gas type is required")
-    }
-
-    prices, err := s.storage.GetHistoryPrices(id, gasType)
-    if err != nil {
-        return err
-    }
-
-    return jsonWriter(w, http.StatusOK, prices)
-}
-
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
     loginDto := new(LoginDto)
     if err := json.NewDecoder(r.Body).Decode(loginDto); err != nil {
@@ -164,74 +140,6 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 
     w.Header().Set("Authorization", token)
     return jsonWriter(w, http.StatusOK, tokenDto)
-}
-
-func (s *APIServer) handleGetStations(w http.ResponseWriter, r *http.Request) error {
-    stations, err := s.storage.GetStations()
-    if err != nil {
-        return fmt.Errorf("Failed to get stations")
-    }
-
-    return jsonWriter(w, http.StatusOK, stations)
-}
-
-func (s *APIServer) handleGetStationById(w http.ResponseWriter, r *http.Request) error {
-    id, err := getIdFromPath(r)
-    if err != nil {
-        return err
-    }
-
-    station, err := s.storage.GetStationByID(id)
-    if err != nil {
-        return err
-    }
-
-    return jsonWriter(w, http.StatusOK, station)
-}
-
-func (s *APIServer) handleCreateStation(w http.ResponseWriter, r *http.Request) error {
-    stationDto := new(StationDto)
-    if err := json.NewDecoder(r.Body).Decode(stationDto); err != nil {
-        return err
-    }
-
-    err := s.storage.CreateStation(stationDto)
-    if err != nil {
-        return err
-    }
-
-    return jsonWriter(w, http.StatusCreated, "Station created")
-}
-
-func (s *APIServer) handleUpdateStation(w http.ResponseWriter, r *http.Request) error {
-    id, err := getIdFromPath(r)
-    if err != nil {
-        return err
-    }
-
-    stationDto := new(StationDto)
-    if err := json.NewDecoder(r.Body).Decode(stationDto); err != nil {
-        return err
-    }
-
-    if err := s.storage.UpdateStation(id, stationDto); err != nil {
-        return err
-    }
-
-    return jsonWriter(w, http.StatusOK, "Station updated")
-}
-
-func (s *APIServer) handleDeleteStation(w http.ResponseWriter, r *http.Request) error {
-    id, err := getIdFromPath(r)
-    if err != nil {
-        return err
-    }
-
-    if err := s.storage.DeleteStation(id); err != nil {
-        return err
-    }
-
-    return jsonWriter(w, http.StatusOK, fmt.Sprintf("Station with id %d deleted", id))
 }
 
 func (s *APIServer) handleGetUsers(w http.ResponseWriter, r *http.Request) error {
@@ -302,11 +210,127 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 	return jsonWriter(w, http.StatusOK, fmt.Sprintf("User with id %d deleted", id))
 }
 
-func getIdFromPath(r *http.Request) (uint64, error) {
-    id_param := r.PathValue("id")
-    id, err := strconv.ParseUint(id_param, 10, 64)
+
+func (s *APIServer) handleGetStations(w http.ResponseWriter, r *http.Request) error {
+    stations, err := s.storage.GetStations()
     if err != nil {
-        return 0, fmt.Errorf("Failed to parse id")
+        return fmt.Errorf("Failed to get stations")
     }
-    return id, nil
+
+    return jsonWriter(w, http.StatusOK, stations)
 }
+
+func (s *APIServer) handleGetStationById(w http.ResponseWriter, r *http.Request) error {
+    id, err := getIdFromPath(r)
+    if err != nil {
+        return err
+    }
+
+    station, err := s.storage.GetStationByID(id)
+    if err != nil {
+        return err
+    }
+
+    return jsonWriter(w, http.StatusOK, station)
+}
+
+func (s *APIServer) handleCreateStation(w http.ResponseWriter, r *http.Request) error {
+    stationDto := new(StationDto)
+    if err := json.NewDecoder(r.Body).Decode(stationDto); err != nil {
+        return err
+    }
+
+    for _, fuel := range stationDto.SupportedFuel {
+        if !ValidGasType(string(fuel)) {
+            return fmt.Errorf("Invalid fuel type")
+        }
+    }
+
+    for k, v := range stationDto.CurrentPrice {
+        if v < 0 {
+            return fmt.Errorf("Invalid price, has negative value")
+        }
+        foundFuel := false
+        for _, fuel := range stationDto.SupportedFuel {
+            if k == fuel {
+                foundFuel = true
+                break
+            }
+        }
+        if !foundFuel {
+            return fmt.Errorf("Fuel type not specified in supported fuel types")
+        }
+    }
+
+    err := s.storage.CreateStation(stationDto)
+    if err != nil {
+        return err
+    }
+
+    return jsonWriter(w, http.StatusCreated, "Station created")
+}
+
+func (s *APIServer) handleUpdateStation(w http.ResponseWriter, r *http.Request) error {
+    id, err := getIdFromPath(r)
+    if err != nil {
+        return err
+    }
+
+    stationDto := new(StationDto)
+    if err := json.NewDecoder(r.Body).Decode(stationDto); err != nil {
+        return err
+    }
+
+    if err := s.storage.UpdateStation(id, stationDto); err != nil {
+        return err
+    }
+
+    return jsonWriter(w, http.StatusOK, "Station updated")
+}
+
+func (s *APIServer) handleDeleteStation(w http.ResponseWriter, r *http.Request) error {
+    id, err := getIdFromPath(r)
+    if err != nil {
+        return err
+    }
+
+    if err := s.storage.DeleteStation(id); err != nil {
+        return err
+    }
+
+    return jsonWriter(w, http.StatusOK, fmt.Sprintf("Station with id %d deleted", id))
+}
+
+func (s *APIServer) handleGetHistoryPrices(w http.ResponseWriter, r *http.Request) error {
+    id, err := getIdFromPath(r)
+    if err != nil {
+        return err
+    }
+
+    gasType := r.PathValue("gasType")
+    if gasType == "" {
+        return fmt.Errorf("Gas type is required")
+    }
+
+    prices, err := s.storage.GetHistoryPrices(id, gasType)
+    if err != nil {
+        return err
+    }
+
+    return jsonWriter(w, http.StatusOK, prices)
+}
+
+func (s *APIServer) handleGetPricesByLocation(w http.ResponseWriter, r *http.Request) error {
+    loc := new(Location)
+    if err := json.NewDecoder(r.Body).Decode(loc); err != nil {
+        return err
+    }
+    
+    prices, err := s.storage.GetPricesByLocation(loc)
+    if err != nil {
+        return nil
+    }
+
+    return jsonWriter(w, http.StatusOK, prices)
+}
+
