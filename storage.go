@@ -81,9 +81,6 @@ func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*StationPriceLocDto,
 }
 
 func (s *RAMStorage) GetHistoryPrices(id uint64, gasType string) (*HistPriceGasTypeDto, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	histPrices := &HistPriceGasTypeDto{
 		HistoryPrices: make(map[time.Time]float64, 0),
 	}
