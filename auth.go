@@ -30,33 +30,44 @@ func GenerateJwtToken(email string) string {
     header := GenerateJwtHeader()
     payload := GenerateJwtPayload(email)
     signature := GenerateJwtSignature(header, payload)
-    return header + "." + payload + "." + signature
+    return encodeBase64(header) + "." + encodeBase64(payload) + "." + encodeBase64(signature)
 }
 
-func GenerateJwtHeader() string {
+func GenerateJwtHeader() []byte {
     headerJson, _ := json.Marshal(map[string]string{
         "alg": "HS256",
         "typ": "JWT",
     })
-    return base64.StdEncoding.EncodeToString(headerJson)
+    return headerJson
 }
 
-func GenerateJwtPayload(email string) string {
+func GenerateJwtPayload(email string) []byte {
     exp := time.Now().Add(time.Hour).Unix()
     payloadJson, _ := json.Marshal(map[string]string{
         "exp": strconv.FormatInt(exp, 10),
         "email": email,
     })
-    return base64.StdEncoding.EncodeToString(payloadJson)
+    return payloadJson
 }
 
-func GenerateJwtSignature(header, payload string) string {
+func GenerateJwtSignature(header, payload []byte) []byte {
     secret := os.Getenv("JWT_SECRET")
-    message := header + "." + payload
+    message := encodeBase64(header) + "." + encodeBase64(payload)
     mac := hmac.New(sha256.New, []byte(secret))
     mac.Write([]byte(message))
-    signature := mac.Sum(nil)
-    return base64.StdEncoding.EncodeToString(signature)
+    return mac.Sum(nil)
+}
+
+func encodeBase64(data []byte) string {
+    return base64.StdEncoding.EncodeToString(data)
+}
+
+func decodeBase64(data string) ([]byte, error) {
+    res, err := base64.StdEncoding.DecodeString(data)
+    if err != nil {
+        return nil, nil
+    }
+    return res, nil
 }
 
 func ValidateJwt(token string) bool {
@@ -71,11 +82,21 @@ func ValidateJwt(token string) bool {
         return false
     }
 
-    exp, _ := strconv.ParseInt(claims["exp"], 10, 64)
-    if time.Now().Unix() > exp {
+    exp, err := strconv.ParseInt(claims["exp"], 10, 64)
+    if err != nil || time.Now().Unix() > exp {
         return false
     }
 
-    signature := parts[2]
-    return signature == GenerateJwtSignature(parts[0], parts[1])
+    decHeader, err := base64.StdEncoding.DecodeString(parts[0])
+    if err != nil {
+        return false
+    }
+
+    decPayload, err := base64.StdEncoding.DecodeString(parts[1])
+    if err != nil {
+        return false
+    }
+    
+    testSignature := GenerateJwtSignature(decHeader, decPayload)
+    return hmac.Equal([]byte(parts[2]), testSignature)
 }
