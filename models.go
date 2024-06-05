@@ -138,12 +138,14 @@ func NewStationDto(
 	name string,
 	addr string,
 	suppFuel []GasType,
-	location Location) *StationDto {
+	location Location,
+    currPrice GasPrices) *StationDto {
 	return &StationDto{
 		Name:          name,
 		Address:       addr,
 		SupportedFuel: suppFuel,
 		Location:      location,
+        CurrentPrice:  currPrice,
 	}
 }
 
