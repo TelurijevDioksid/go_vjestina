@@ -11,19 +11,19 @@ import (
 
 type Storage interface {
 	CreateUser(*UserDto) error
-	DeleteUser(int64) error
-	UpdateUser(int64, *UserDto) (*User, error)
+	DeleteUser(uint64) error
+	UpdateUser(uint64, *UserDto) (*User, error)
 	GetUsers() ([]*User, error)
-	GetUserByID(int64) (*User, error)
+	GetUserByID(uint64) (*User, error)
 	GetUserByEmail(string) (*User, error)
 
 	CreateStation(*StationDto) error
-	DeleteStation(int64) error
-	UpdateStation(int64, *StationDto) error
+	DeleteStation(uint64) error
+	UpdateStation(uint64, *StationDto) error
 	GetStations() ([]*Station, error)
-	GetStationByID(int64) (*Station, error)
+	GetStationByID(uint64) (*Station, error)
 
-	GetHistoryPrices(int64, string) (*HistPriceGasTypeDto, error)
+	GetHistoryPrices(uint64, string) (*HistPriceGasTypeDto, error)
 	GetPricesByLocation(*Location) ([3]*StationPriceLocDto, error)
 }
 
@@ -50,10 +50,10 @@ func NewRAMStorage() *RAMStorage {
 	}
 }
 
-func generateId() int64 {
+func generateId() uint64 {
 	src := rand.NewSource(time.Now().UnixNano())
 	r := rand.New(src)
-	return int64(r.Uint64())
+	return r.Uint64()
 }
 
 func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*StationPriceLocDto, error) {
@@ -80,7 +80,7 @@ func (s *RAMStorage) GetPricesByLocation(loc *Location) ([3]*StationPriceLocDto,
 	return dtoArr, nil
 }
 
-func (s *RAMStorage) GetHistoryPrices(id int64, gasType string) (*HistPriceGasTypeDto, error) {
+func (s *RAMStorage) GetHistoryPrices(id uint64, gasType string) (*HistPriceGasTypeDto, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -145,7 +145,7 @@ func (s *RAMStorage) CreateStation(cst *StationDto) error {
 	return nil
 }
 
-func (s *RAMStorage) DeleteStation(id int64) error {
+func (s *RAMStorage) DeleteStation(id uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -159,7 +159,7 @@ func (s *RAMStorage) DeleteStation(id int64) error {
 	return fmt.Errorf("Station with id %d not found", id)
 }
 
-func (s *RAMStorage) UpdateStation(id int64, station *StationDto) error {
+func (s *RAMStorage) UpdateStation(id uint64, station *StationDto) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -183,7 +183,7 @@ func (s *RAMStorage) GetStations() ([]*Station, error) {
 	return s.stations, nil
 }
 
-func (s *RAMStorage) GetStationByID(id int64) (*Station, error) {
+func (s *RAMStorage) GetStationByID(id uint64) (*Station, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -209,7 +209,7 @@ func (s *RAMStorage) CreateUser(u *UserDto) error {
 	return nil
 }
 
-func (s *RAMStorage) DeleteUser(id int64) error {
+func (s *RAMStorage) DeleteUser(id uint64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -223,7 +223,7 @@ func (s *RAMStorage) DeleteUser(id int64) error {
 	return fmt.Errorf("User with id %d not found", id)
 }
 
-func (s *RAMStorage) UpdateUser(id int64, user *UserDto) (*User, error) {
+func (s *RAMStorage) UpdateUser(id uint64, user *UserDto) (*User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -246,7 +246,7 @@ func (s *RAMStorage) GetUsers() ([]*User, error) {
 	return s.users, nil
 }
 
-func (s *RAMStorage) GetUserByID(id int64) (*User, error) {
+func (s *RAMStorage) GetUserByID(id uint64) (*User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

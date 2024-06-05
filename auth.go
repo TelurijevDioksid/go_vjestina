@@ -1,16 +1,14 @@
 package main
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
+    "golang.org/x/crypto/bcrypt"
 	"encoding/json"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
-	"golang.org/x/crypto/bcrypt"
+    "encoding/base64"
+    "strconv"
+    "crypto/hmac"
+    "crypto/sha256"
+    "time"
+    "strings"
 )
 
 func BcryptPassword(pwd string) (string, error) {
@@ -30,44 +28,35 @@ func GenerateJwtToken(email string) string {
     header := GenerateJwtHeader()
     payload := GenerateJwtPayload(email)
     signature := GenerateJwtSignature(header, payload)
-    return encodeBase64(header) + "." + encodeBase64(payload) + "." + encodeBase64(signature)
+    token := header + "." + payload + "." + signature
+    return token 
 }
 
-func GenerateJwtHeader() []byte {
+func GenerateJwtHeader() string {
     headerJson, _ := json.Marshal(map[string]string{
-        "alg": "HS256",
         "typ": "JWT",
+        "alg": "HS256",
     })
-    return headerJson
+    return base64.RawURLEncoding.EncodeToString(headerJson)
 }
 
-func GenerateJwtPayload(email string) []byte {
+func GenerateJwtPayload(email string) string {
     exp := time.Now().Add(time.Hour).Unix()
     payloadJson, _ := json.Marshal(map[string]string{
+        "iss": "gasPriceApi",
         "exp": strconv.FormatInt(exp, 10),
         "email": email,
     })
-    return payloadJson
+    return base64.RawURLEncoding.EncodeToString(payloadJson)
 }
 
-func GenerateJwtSignature(header, payload []byte) []byte {
-    secret := os.Getenv("JWT_SECRET")
-    message := encodeBase64(header) + "." + encodeBase64(payload)
+func GenerateJwtSignature(header, payload string) string {
+    secret := "GOGOGOGO"
+    message := header + "." + payload
     mac := hmac.New(sha256.New, []byte(secret))
     mac.Write([]byte(message))
-    return mac.Sum(nil)
-}
-
-func encodeBase64(data []byte) string {
-    return base64.StdEncoding.EncodeToString(data)
-}
-
-func decodeBase64(data string) ([]byte, error) {
-    res, err := base64.StdEncoding.DecodeString(data)
-    if err != nil {
-        return nil, nil
-    }
-    return res, nil
+    signature := mac.Sum(nil)
+    return base64.RawURLEncoding.EncodeToString(signature)
 }
 
 func ValidateJwt(token string) bool {
@@ -77,26 +66,16 @@ func ValidateJwt(token string) bool {
     }
 
     claims := make(map[string]string)
-    payload, _ := base64.StdEncoding.DecodeString(parts[1])
+    payload, _ := base64.RawURLEncoding.DecodeString(parts[1])
     if err := json.Unmarshal(payload, &claims); err != nil {
         return false
     }
 
-    exp, err := strconv.ParseInt(claims["exp"], 10, 64)
-    if err != nil || time.Now().Unix() > exp {
+    exp, _ := strconv.ParseInt(claims["exp"], 10, 64)
+    if time.Now().Unix() > exp {
         return false
     }
 
-    decHeader, err := base64.StdEncoding.DecodeString(parts[0])
-    if err != nil {
-        return false
-    }
-
-    decPayload, err := base64.StdEncoding.DecodeString(parts[1])
-    if err != nil {
-        return false
-    }
-    
-    testSignature := GenerateJwtSignature(decHeader, decPayload)
-    return hmac.Equal([]byte(parts[2]), testSignature)
+    signature := parts[2]
+    return signature == GenerateJwtSignature(parts[0], parts[1])
 }

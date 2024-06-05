@@ -298,9 +298,9 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 	return jsonWriter(w, http.StatusOK, fmt.Sprintf("User with id %d deleted", id))
 }
 
-func getIdFromPath(r *http.Request) (int64, error) {
+func getIdFromPath(r *http.Request) (uint64, error) {
     id_param := r.PathValue("id")
-    id, err := strconv.ParseInt(id_param, 10, 64)
+    id, err := strconv.ParseUint(id_param, 10, 64)
     if err != nil {
         return 0, fmt.Errorf("Failed to parse id")
     }

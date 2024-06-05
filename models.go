@@ -23,7 +23,7 @@ type HistPriceGasTypeDto struct {
 }
 
 type User struct {
-	ID            int64  `json:"id"`
+	ID            uint64 `json:"id"`
 	Username      string `json:"username"`
 	CryptPassword string `json:"password"`
 	Email         string `json:"email"`
@@ -50,7 +50,7 @@ func NewTokenDto(token string) *TokenDto {
 	}
 }
 
-func NewUser(id int64, uname string, pass string, email string) (*User, error) {
+func NewUser(id uint64, uname string, pass string, email string) (*User, error) {
 	encryPwd, err := BcryptPassword(pass)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func NewUserDto(uname string, pass string, email string) *UserDto {
 }
 
 type Station struct {
-	ID            int64       `json:"id"`
+	ID            uint64       `json:"id"`
 	Name          string      `json:"name"`
 	Address       string      `json:"address"`
 	SupportedFuel []GasType   `json:"supported_fuel"`
@@ -116,7 +116,7 @@ func NewStationPriceLocDto(name string, addr string, loc Location, currP GasPric
 }
 
 func NewStation(
-	id int64,
+	id uint64,
 	name string,
 	addr string,
 	suppFuel []GasType,
