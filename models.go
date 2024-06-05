@@ -7,15 +7,12 @@ import (
 
 type GasType string
 
-const (
-	EarthRadius = 6371
-	Diesel      = "diesel"
-	Gasoline    = "gasoline"
-	Gas         = "gas"
-)
+const EarthRadius = 6371
 
 func ValidGasType(g string) bool {
-	return g == Diesel || g == Gasoline || g == Gas
+	return g == "diesel" ||
+        g == "gasoline" ||
+        g == "gas"
 }
 
 type HistPriceGasTypeDto struct {
@@ -63,14 +60,6 @@ func NewUser(id uint64, uname string, pass string, email string) (*User, error) 
 	}, nil
 }
 
-func NewUserDto(uname string, pass string, email string) *UserDto {
-	return &UserDto{
-		Username: uname,
-		Password: pass,
-		Email:    email,
-	}
-}
-
 type Station struct {
 	ID            uint64      `json:"id"`
 	Name          string      `json:"name"`
@@ -87,11 +76,11 @@ type GasPrices struct {
 }
 
 type StationDto struct {
-	Name          string    `json:"name"`
-	Address       string    `json:"address"`
-	SupportedFuel []GasType `json:"supported_fuel"`
-	Location      Location  `json:"location"`
-	CurrentPrice  GasPrices `json:"current_price"`
+	Name          string       `json:"name"`
+	Address       string       `json:"address"`
+	SupportedFuel []GasType    `json:"supported_fuel"`
+	Location      Location     `json:"location"`
+	CurrentPrice  map[GasType]float64 `json:"prices"`
 }
 
 type Location struct {
@@ -131,21 +120,6 @@ func NewStation(
 		Location:      loc,
 		CurrentPrice:  currP,
 		PricesHistory: histP,
-	}
-}
-
-func NewStationDto(
-	name string,
-	addr string,
-	suppFuel []GasType,
-	location Location,
-    currPrice GasPrices) *StationDto {
-	return &StationDto{
-		Name:          name,
-		Address:       addr,
-		SupportedFuel: suppFuel,
-		Location:      location,
-        CurrentPrice:  currPrice,
 	}
 }
 

@@ -88,17 +88,14 @@ func (s *RAMStorage) GetHistoryPrices(id uint64, gasType string) (*HistPriceGasT
 		HistoryPrices: make(map[time.Time]float64, 0),
 	}
     
-    fmt.Println("dosa je tu storage")
 	station, err := s.GetStationByID(id)
 	if err != nil {
 		return histPrices, err
 	}
 
-    fmt.Println("dosa je tu storage 1")
 	if !ValidGasType(gasType) {
 		return histPrices, fmt.Errorf("Invalid gas type")
 	}
-    fmt.Println("dosa je tu 2")
 
 	gt := GasType(gasType)
 	supported := false
@@ -111,8 +108,6 @@ func (s *RAMStorage) GetHistoryPrices(id uint64, gasType string) (*HistPriceGasT
 	if !supported {
 		return histPrices, fmt.Errorf("Gas type not supported")
 	}
-
-    fmt.Println("dosa je tu 3")
 
 	for _, gp := range station.PricesHistory {
 		histPrices.HistoryPrices[gp.Time] = gp.Prices[gt]
@@ -127,6 +122,10 @@ func (s *RAMStorage) CreateStation(cst *StationDto) error {
 
 	id := generateId()
 	histP := make([]GasPrices, 0)
+    sCurrPrice := &GasPrices{
+        Prices: cst.CurrentPrice,
+        Time: time.Now(),
+    }
 
 	station := NewStation(
 		id,
@@ -134,7 +133,7 @@ func (s *RAMStorage) CreateStation(cst *StationDto) error {
 		cst.Address,
 		cst.SupportedFuel,
 		cst.Location,
-		cst.CurrentPrice,
+		*sCurrPrice,
 		histP,
 	)
 
@@ -144,7 +143,7 @@ func (s *RAMStorage) CreateStation(cst *StationDto) error {
     }
 
 	priceSource := NewStationPriceSource(station)
-	priceModifier := NewMCPriceGen(60 * time.Second, priceSource)
+	priceModifier := NewMCPriceGen(20 * time.Second, priceSource)
 	priceReceiver := NewStationPriceReceiver(station)
 
 	priceChan := make(chan GasPrices)

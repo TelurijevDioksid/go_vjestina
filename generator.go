@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -58,24 +57,21 @@ func (mc *MCPriceGen) ModifyPrice(num float64) float64 {
 		price *= math.Exp((mu - 0.5 * sigma * sigma) * dt + sigma * dW)
 	}
     
-    fmt.Println("Modify price: (", price, " old price ", num, ")")
     return price
 }
 
 func (mc *MCPriceGen) SendPrice(ch chan GasPrices) {
 	for {
-        fmt.Println("GO Generating new price")
+        time.Sleep(mc.interval)
 		prevPrice := mc.initalPriceSource.GetPrice()
         newPrice := GasPrices{
             Prices: make(map[GasType]float64),
             Time: time.Now(),
         }
         for k, v := range prevPrice.Prices {
-            fmt.Println("k: ", k, " v: ", v)
             newPrice.Prices[k] = mc.ModifyPrice(v)
         }
         ch <- newPrice
-		time.Sleep(mc.interval)
 	}
 }
 
@@ -95,7 +91,6 @@ func NewStationPriceReceiver(s *Station) *StationPriceReceiver {
 
 func (s *StationPriceReceiver) ReceivePrice(ch chan GasPrices) {
     for {
-        fmt.Println("GO Receiving new price")
         newPrice := <-ch
         s.Station.PricesHistory = append(s.Station.PricesHistory, s.Station.CurrentPrice)
         s.Station.CurrentPrice = newPrice

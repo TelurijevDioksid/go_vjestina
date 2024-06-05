@@ -136,8 +136,6 @@ func (s *APIServer) handleGetHistoryPrices(w http.ResponseWriter, r *http.Reques
         return fmt.Errorf("Gas type is required")
     }
 
-    fmt.Println("dosa je tu 1")
-
     prices, err := s.storage.GetHistoryPrices(id, gasType)
     if err != nil {
         return err
@@ -195,10 +193,6 @@ func (s *APIServer) handleCreateStation(w http.ResponseWriter, r *http.Request) 
     stationDto := new(StationDto)
     if err := json.NewDecoder(r.Body).Decode(stationDto); err != nil {
         return err
-    }
-
-    for k, v := range stationDto.CurrentPrice.Prices {
-        fmt.Println("Prices: ", k, v)
     }
 
     err := s.storage.CreateStation(stationDto)
