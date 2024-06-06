@@ -23,6 +23,8 @@ type apiFuncDef func(http.ResponseWriter, *http.Request) error
 
 func jsonWriter(w http.ResponseWriter, status int, data interface{}) error {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Methods", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "*")
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(data)
